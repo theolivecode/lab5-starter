@@ -4,6 +4,7 @@
 int num = 0;
 
 char const HTTP_404_NOT_FOUND[] = "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\n";
+char const HTTP_200_OK[] = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n";
 
 void handle_404(int client_sock, char *path)  {
     printf("SERVER LOG: Got request for unrecognized path \"%s\"\n", path);
@@ -13,9 +14,35 @@ void handle_404(int client_sock, char *path)  {
     // snprintf includes a null-terminator
 
     // TODO: send response back to client?
+    write(client_sock, HTTP_404_NOT_FOUND, strlen(HTTP_404_NOT_FOUND));
+    write(client_sock, response_buff, strlen(response_buff));
 }
 
+void handle_shownum(int client_sock){
+    char message[BUFFER_SIZE];
+    snprintf(message, BUFFER_SIZE, "Current number: %d\n", num);
+    write(client_sock, HTTP_200_OK, strlen(HTTP_200_OK));
+    write(client_sock, message, strlen(message));
+}
 
+void handle_increment(int client_sock){
+    char message[BUFFER_SIZE];
+    num += 1;
+    snprintf(message, BUFFER_SIZE, "Incremented to: %d\n", num);
+    write(client_sock, HTTP_200_OK, strlen(HTTP_200_OK));
+    write(client_sock, message, strlen(message));
+}
+
+void handle_add(int client_sock, char* path){
+    char* start_of_num = strstr(path, "=") + 1;
+    int toadd = atoi(start_of_num);
+    num += toadd;
+
+    char message[BUFFER_SIZE];
+    snprintf(message, BUFFER_SIZE, "Added: %d, got: %d\n", toadd, num);
+    write(client_sock, HTTP_200_OK, strlen(HTTP_200_OK));
+    write(client_sock, message, strlen(message));
+}
 void handle_response(char *request, int client_sock) {
     char path[256];
 
@@ -27,7 +54,21 @@ void handle_response(char *request, int client_sock) {
         return;
     }
 
-    handle_404(client_sock, path);
+    if(strcmp(path, "/shownum") == 0){
+        handle_shownum(client_sock);
+        return;
+    }
+    else if(strcmp(path, "/increment") == 0){
+        handle_increment(client_sock);
+        return;
+    }
+    else if(strncmp(path, "/add?value=", strlen("/add?value=")) == 0){
+        handle_add(client_sock, path);
+        return;
+    }
+    else{
+        handle_404(client_sock, path);
+    }
 }
 
 int main(int argc, char *argv[]) {
